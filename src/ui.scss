@@ -1,0 +1,53 @@
+// Custom styles for MVP Plugin UI
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--figma-color-border);
+  height: 40px;
+  background: transparent;
+  margin: 16px 0 0 0;
+}
+
+.tab {
+  font-family: var(--font-stack);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--figma-color-text-secondary);
+  padding: 0 16px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  background: none;
+  user-select: none;
+  transition: color 0.1s, border-bottom 0.1s;
+}
+
+.tab--active {
+  color: var(--figma-color-text);
+  font-weight: 600;
+  border-bottom: 2px solid var(--figma-color-border-selected);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-stack);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--figma-color-text-secondary);
+  height: 40px;
+  padding: 0 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s, border-bottom 0.1s;
+}
+
+.tab-btn--active {
+  font-weight: 600;
+  color: var(--figma-color-text);
+  border-bottom: 2px solid var(--figma-color-border-selected) !important;
+}

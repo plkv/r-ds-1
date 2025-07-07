@@ -1,0 +1,29 @@
+{
+  "dependencies": {
+    "@create-figma-plugin/utilities": "^4.0.1"
+  },
+  "devDependencies": {
+    "@create-figma-plugin/build": "^4.0.1",
+    "@create-figma-plugin/tsconfig": "^4.0.1",
+    "@figma/plugin-typings": "1.109.0",
+    "del": "^8.0.0",
+    "gulp": "^5.0.1",
+    "gulp-concat": "^2.6.1",
+    "gulp-htmlmin": "^5.0.1",
+    "gulp-inline-source": "^4.0.0",
+    "gulp-sass": "^6.0.1",
+    "typescript": ">=5"
+  },
+  "scripts": {
+    "build": "build-figma-plugin --typecheck --minify",
+    "watch": "build-figma-plugin --typecheck --watch"
+  },
+  "figma-plugin": {
+    "editorType": [
+      "figma"
+    ],
+    "id": "hello-world",
+    "name": "Hello World",
+    "main": "src/main.ts"
+  }
+}

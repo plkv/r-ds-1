@@ -1,0 +1,25 @@
+.tab-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--figma-color-border);
+  height: 40px;
+}
+
+.tab {
+  padding: 0 16px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--figma-color-text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s, border-bottom 0.1s;
+}
+
+.tab--active {
+  color: var(--figma-color-text);
+  border-bottom: 2px solid var(--figma-color-border-selected);
+} 
