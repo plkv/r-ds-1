@@ -6,125 +6,45 @@ let scanProgress = 0;
 let scanCancelled = false;
 
 function collectAllStyles() {
-  // 1. Цветовые стили (группировка по style.group)
-  const paintStyles = figma.getLocalPaintStyles();
-  const colorGroups = {};
-  paintStyles.forEach(s => {
-    if (!s.paints.some(p => p.type === 'SOLID')) return;
-    const group = s.name.includes('/') ? s.name.split('/')[0] : 'Ungrouped';
-    if (!colorGroups[group]) colorGroups[group] = [];
-    colorGroups[group].push(s);
-  });
-  const colorGroupArr = Object.entries(colorGroups)
-    .filter(([_, arr]) => arr.length > 0)
-    .map(([group, arr]) => ({
-      id: `color-${group}`,
-      label: group,
-      items: arr.map(s => ({ id: s.id, label: s.name }))
-    }));
-
-  // 2. Градиенты (аналогично)
-  const gradientGroups = {};
-  paintStyles.forEach(s => {
-    if (!s.paints.some(p => p.type.indexOf('GRADIENT') === 0)) return;
-    const group = s.name.includes('/') ? s.name.split('/')[0] : 'Ungrouped';
-    if (!gradientGroups[group]) gradientGroups[group] = [];
-    gradientGroups[group].push(s);
-  });
-  const gradientGroupArr = Object.entries(gradientGroups)
-    .filter(([_, arr]) => arr.length > 0)
-    .map(([group, arr]) => ({
-      id: `gradient-${group}`,
-      label: group,
-      items: arr.map(s => ({ id: s.id, label: s.name }))
-    }));
-
-  // 3. Филлы (заливки-изображения)
-  const fillGroups = {};
-  paintStyles.forEach(s => {
-    if (!s.paints.some(p => p.type === 'IMAGE')) return;
-    const group = s.name.includes('/') ? s.name.split('/')[0] : 'Ungrouped';
-    if (!fillGroups[group]) fillGroups[group] = [];
-    fillGroups[group].push(s);
-  });
-  const fillGroupArr = Object.entries(fillGroups)
-    .filter(([_, arr]) => arr.length > 0)
-    .map(([group, arr]) => ({
-      id: `fill-${group}`,
-      label: group,
-      items: arr.map(s => ({ id: s.id, label: s.name }))
-    }));
-
-  // 4. Эффекты
-  const effectStyles = figma.getLocalEffectStyles();
-  const effectGroups = {};
-  effectStyles.forEach(s => {
-    const group = s.name.includes('/') ? s.name.split('/')[0] : 'Ungrouped';
-    if (!effectGroups[group]) effectGroups[group] = [];
-    effectGroups[group].push(s);
-  });
-  const effectGroupArr = Object.entries(effectGroups)
-    .filter(([_, arr]) => arr.length > 0)
-    .map(([group, arr]) => ({
-      id: `effect-${group}`,
-      label: group,
-      items: arr.map(s => ({ id: s.id, label: s.name }))
-    }));
-
-  // 5. Текстовые стили
-  const textStyles = figma.getLocalTextStyles();
-  const textGroups = {};
-  textStyles.forEach(s => {
-    const group = s.name.includes('/') ? s.name.split('/')[0] : 'Ungrouped';
-    if (!textGroups[group]) textGroups[group] = [];
-    textGroups[group].push(s);
-  });
-  const textGroupArr = Object.entries(textGroups)
-    .filter(([_, arr]) => arr.length > 0)
-    .map(([group, arr]) => ({
-      id: `text-${group}`,
-      label: group,
-      items: arr.map(s => ({ id: s.id, label: s.name }))
-    }));
-
-  // 6. Переменные (по коллекциям и режимам)
-  let variableGroups = [];
-  if (figma.variables) {
-    try {
-      const variables = figma.variables.getLocalVariables();
-      const collections = {};
-      variables.forEach(v => {
-        const col = v.variableCollectionId || 'Ungrouped';
-        if (!collections[col]) collections[col] = [];
-        collections[col].push(v);
-      });
-      variableGroups = Object.entries(collections)
+  // Группировка для UI: тип → группы
+  function groupByTypeAndGroup(arr, typeLabel) {
+    const groups = {};
+    arr.forEach(s => {
+      const group = s.name.includes('/') ? s.name.split('/')[0] : 'Ungrouped';
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(s);
+    });
+    return {
+      id: typeLabel.toLowerCase().replace(/\s+/g, '-'),
+      label: typeLabel,
+      items: Object.entries(groups)
         .filter(([_, arr]) => arr.length > 0)
-        .map(([col, arr]) => ({
-          id: `var-${col}`,
-          label: (figma.variables.getVariableCollectionById && figma.variables.getVariableCollectionById(col) && figma.variables.getVariableCollectionById(col).name) || col,
-          items: arr.map(v => ({
-            id: v.id,
-            label: v.name + (v.modes && v.modes.length ? ` [${v.modes.map(m => m.name).join(', ')}]` : '')
-          }))
-        }));
-    } catch (e) { variableGroups = []; }
+        .map(([group, arr]) => ({
+          id: group.toLowerCase().replace(/\s+/g, '-'),
+          label: group,
+          items: []
+        }))
+    };
   }
-
-  // Собираем все группы
-  const groups = [
-    ...colorGroupArr,
-    ...gradientGroupArr,
-    ...fillGroupArr,
-    ...effectGroupArr,
-    ...textGroupArr,
-    ...variableGroups,
+  // Типы
+  const paintStyles = figma.getLocalPaintStyles();
+  const effectStyles = figma.getLocalEffectStyles();
+  const textStyles = figma.getLocalTextStyles();
+  let variables = [];
+  if (figma.variables) {
+    try { variables = figma.variables.getLocalVariables(); } catch (e) { variables = []; }
+  }
+  const types = [
+    groupByTypeAndGroup(paintStyles.filter(s => s.paints.some(p => p.type === 'SOLID')), 'Paint'),
+    groupByTypeAndGroup(paintStyles.filter(s => s.paints.some(p => p.type.indexOf('GRADIENT') === 0)), 'Paint'),
+    groupByTypeAndGroup(paintStyles.filter(s => s.paints.some(p => p.type === 'IMAGE')), 'Image'),
+    groupByTypeAndGroup(effectStyles, 'Effect'),
+    groupByTypeAndGroup(textStyles, 'Text Style'),
+    groupByTypeAndGroup(variables, 'Variable'),
   ];
-  // Только непустые
-  const filtered = groups.filter(g => g.items && g.items.length > 0);
-  // Для прогресса: считаем общее количество
-  const total = filtered.reduce((sum, g) => sum + g.items.length, 0);
-  return { groups: filtered, total };
+  const groups = types.filter(t => t.items.length > 0);
+  const total = groups.length;
+  return { groups, total };
 }
 
 figma.ui.onmessage = (msg) => {
@@ -150,20 +70,28 @@ figma.ui.onmessage = (msg) => {
     scanCancelled = true;
     figma.ui.postMessage({ type: 'scan-cancel' });
   }
-  if (msg.type === 'add-to-artboard') {
-    // TODO: добавить карточки на артборд
-    figma.notify('Add to artboard (заглушка)');
-  }
-  if (msg.type === 'copy-config') {
-    const selectedIds = msg.groups || [];
-    // Собираем данные по выбранным id
+  if (msg.type === 'add-to-artboard' || msg.type === 'copy-config') {
+    // msg.groups теперь содержит id выбранных групп (верхнего уровня)
+    const selectedGroupIds = msg.groups || [];
+    // Собираем все переменные/стили, которые входят в выбранные группы
     const paintStyles = figma.getLocalPaintStyles();
     const textStyles = figma.getLocalTextStyles();
     let variables = [];
     if (figma.variables) {
       try { variables = figma.variables.getLocalVariables(); } catch (e) { variables = []; }
     }
-    // Словарь id → объект
+    // Функция: принадлежит ли стиль/переменная выбранной группе
+    function belongsToGroup(item, groupIds) {
+      const group = item.name.includes('/') ? item.name.split('/')[0] : 'Ungrouped';
+      return groupIds.includes(group.toLowerCase().replace(/\s+/g, '-'));
+    }
+    // Собираем id всех переменных/стилей из выбранных групп
+    const selectedIds = [
+      ...paintStyles.filter(s => belongsToGroup(s, selectedGroupIds)).map(s => s.id),
+      ...textStyles.filter(s => belongsToGroup(s, selectedGroupIds)).map(s => s.id),
+      ...variables.filter(v => belongsToGroup(v, selectedGroupIds)).map(v => v.id),
+    ];
+    // Собираем данные по выбранным id
     const all = {};
     paintStyles.forEach(s => { all[s.id] = s; });
     textStyles.forEach(s => { all[s.id] = s; });

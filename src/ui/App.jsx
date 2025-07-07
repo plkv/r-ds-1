@@ -43,16 +43,18 @@ export default function App() {
     } else {
       next = [...checked, id];
     }
+    // Считаем все группы всех типов
+    const allGroupIds = groups.flatMap(type => type.items.map(g => g.id));
     setChecked(next);
-    setAllChecked(next.length === groups.length);
+    setAllChecked(next.length === allGroupIds.length);
   };
   const handleSelectAll = () => {
+    const allGroupIds = groups.flatMap(type => type.items.map(g => g.id));
     if (allChecked) {
       setChecked([]);
       setAllChecked(false);
     } else {
-      const allIds = groups.flatMap(g => g.items.map(item => item.id));
-      setChecked(allIds);
+      setChecked(allGroupIds);
       setAllChecked(true);
     }
   };
@@ -71,9 +73,9 @@ export default function App() {
         setScanned(pluginMessage.total);
         setTotal(pluginMessage.total);
         setGroups(pluginMessage.groups || []);
-        // По умолчанию выделяем все чекбоксы
-        const allIds = (pluginMessage.groups || []).flatMap(g => g.items.map(item => item.id));
-        setChecked(allIds);
+        // По умолчанию выделяем все группы всех типов
+        const allGroupIds = (pluginMessage.groups || []).flatMap(type => type.items.map(g => g.id));
+        setChecked(allGroupIds);
         setAllChecked(true);
       }
       if (pluginMessage.type === 'scan-cancel') {
@@ -188,6 +190,8 @@ export default function App() {
                     maxH="calc(100% - 56px)"
                     overflowY="auto"
                     pb={64}
+                    pl={4}
+                    pt={4}
                   >
                     <Checkbox
                       isChecked={allChecked}
@@ -196,47 +200,70 @@ export default function App() {
                       fontWeight={500}
                       colorScheme="blue"
                       m={0} p={0} pl={0} borderRadius={0}
+                      mb={4}
                     >Select all</Checkbox>
                     <Divider m={0} p={0} />
-                    {groups.map((g, gi) => (
-                      <Box key={g.id} m={0} p={0} mt={gi > 0 ? 2 : 0} px={0} mx={0}>
-                        <Checkbox
-                          isChecked={g.items.every(item => checked.includes(item.id))}
-                          isIndeterminate={g.items.some(item => checked.includes(item.id)) && !g.items.every(item => checked.includes(item.id))}
-                          onChange={() => {
-                            const allIn = g.items.every(item => checked.includes(item.id));
-                            if (allIn) {
-                              setChecked(checked.filter(id => !g.items.some(item => item.id === id)));
-                            } else {
-                              setChecked([...checked, ...g.items.filter(item => !checked.includes(item.id)).map(item => item.id)]);
-                            }
-                          }}
-                          fontSize="11px"
-                          fontWeight={700}
-                          colorScheme="blue"
-                          m={0} p={0} pl={0} borderRadius={0}
-                        >{g.label}</Checkbox>
-                        <VStack align="stretch" spacing={0} m={0} p={0} pl={6} mt={1}>
-                          {g.items.map((item, ii) => (
+                    {groups.map((type, ti) => {
+                      console.log('RENDER TYPE', type.label);
+                      // Все id групп этого типа
+                      const groupIds = type.items.map(g => g.id);
+                      const allTypeChecked = groupIds.every(id => checked.includes(id));
+                      const someTypeChecked = groupIds.some(id => checked.includes(id));
+                      const handleTypeCheck = () => {
+                        let next;
+                        if (allTypeChecked) {
+                          next = checked.filter(id => !groupIds.includes(id));
+                        } else {
+                          next = Array.from(new Set([...checked, ...groupIds]));
+                        }
+                        // Считаем все группы всех типов
+                        const allGroupIds = groups.flatMap(type => type.items.map(g => g.id));
+                        setChecked(next);
+                        setAllChecked(next.length === allGroupIds.length);
+                      };
+                      return (
+                        <Box
+                          key={type.id}
+                          m={0}
+                          p={0}
+                          mt={ti > 0 ? 2 : 0} // минимальный верхний отступ между секциями
+                          px={0}
+                          mx={0}
+                          bg="#fff"
+                          borderRadius="8px"
+                          boxShadow="none"
+                          overflow="visible"
+                        >
+                          <Box p={1} pb={0}>
                             <Checkbox
-                              key={item.id}
-                              isChecked={checked.includes(item.id)}
-                              onChange={() => {
-                                if (checked.includes(item.id)) {
-                                  setChecked(checked.filter(id => id !== item.id));
-                                } else {
-                                  setChecked([...checked, item.id]);
-                                }
-                              }}
+                              isChecked={allTypeChecked}
+                              isIndeterminate={!allTypeChecked && someTypeChecked}
+                              onChange={handleTypeCheck}
                               fontSize="11px"
-                              fontWeight={400}
+                              fontWeight={700}
                               colorScheme="blue"
                               m={0} p={0} pl={0} borderRadius={0}
-                            >{item.label}</Checkbox>
-                          ))}
-                        </VStack>
-                      </Box>
-                    ))}
+                              mb={1}
+                              bg="none"
+                            >{type.label}</Checkbox>
+                          </Box>
+                          <VStack align="stretch" spacing={1} m={0} p={0} pl={4} pt={0}>
+                            {type.items.map((g, gi) => (
+                              <Checkbox
+                                key={g.id}
+                                isChecked={checked.includes(g.id)}
+                                onChange={() => handleCheck(g.id)}
+                                fontSize="11px"
+                                fontWeight={500}
+                                colorScheme="blue"
+                                m={0} p={0} pl={0} borderRadius={0}
+                                mb={gi === type.items.length - 1 ? 0 : 1}
+                              >{g.label}</Checkbox>
+                            ))}
+                          </VStack>
+                        </Box>
+                      );
+                    })}
                   </VStack>
                 )}
                 {scanState === 'done' && groups.length === 0 && (
