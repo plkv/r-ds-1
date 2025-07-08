@@ -24,6 +24,83 @@ const tabs = [
 
 console.log('App mounted');
 
+// Рекурсивный компонент для чекбоксов с вложенностью и count
+function GroupCheckboxTree({ node, checked, onCheck, level = 0 }) {
+  // leaf node (последний уровень, items пустой)
+  const isLeaf = !node.items || node.items.length === 0;
+  // Разделяем label и modes (если есть)
+  let mainLabel = node.label;
+  let modeLabel = '';
+  const modeMatch = node.label.match(/^(.*) \(([^)]*)\)$/);
+  if (modeMatch) {
+    mainLabel = modeMatch[1];
+    modeLabel = modeMatch[2];
+  }
+  if (isLeaf) {
+    return (
+      <Checkbox
+        key={node.id}
+        isChecked={checked.includes(node.id)}
+        onChange={() => onCheck(node.id)}
+        fontSize="11px"
+        fontWeight={level === 0 ? 700 : 500}
+        colorScheme="blue"
+        m={0} p={0} pl={0} borderRadius={0}
+        mb={1}
+        bg="none"
+      >
+        {mainLabel}
+        {modeLabel && <span style={{ color: '#8E8E93', fontWeight: 400, marginLeft: 4 }}>({modeLabel})</span>}
+        {!!node.count && <span style={{ color: '#8E8E93', fontWeight: 400, marginLeft: 4 }}>({node.count})</span>}
+      </Checkbox>
+    );
+  }
+  // Собираем все id leaf-потомков для массового выделения
+  const collectLeafIds = n => (!n.items || n.items.length === 0) ? [n.id] : n.items.flatMap(collectLeafIds);
+  const allLeafIds = collectLeafIds(node);
+  const allChecked = allLeafIds.every(id => checked.includes(id));
+  const someChecked = allLeafIds.some(id => checked.includes(id));
+  const handleCheck = () => {
+    let next;
+    if (allChecked) {
+      next = checked.filter(id => !allLeafIds.includes(id));
+    } else {
+      next = Array.from(new Set([...checked, ...allLeafIds]));
+    }
+    onCheck(next);
+  };
+  return (
+    <Box ml={level * 8} mb={1}>
+      <Checkbox
+        isChecked={allChecked}
+        isIndeterminate={!allChecked && someChecked}
+        onChange={handleCheck}
+        fontSize="11px"
+        fontWeight={level === 0 ? 700 : 500}
+        colorScheme="blue"
+        m={0} p={0} pl={0} borderRadius={0}
+        mb={1}
+        bg="none"
+      >
+        {mainLabel}
+        {modeLabel && <span style={{ color: '#8E8E93', fontWeight: 400, marginLeft: 4 }}>({modeLabel})</span>}
+        {!!node.count && <span style={{ color: '#8E8E93', fontWeight: 400, marginLeft: 4 }}>({node.count})</span>}
+      </Checkbox>
+      <VStack align="stretch" spacing={1} m={0} p={0} pl={2} pt={0}>
+        {node.items.map(child => (
+          <GroupCheckboxTree
+            key={child.id}
+            node={child}
+            checked={checked}
+            onCheck={onCheck}
+            level={level + 1}
+          />
+        ))}
+      </VStack>
+    </Box>
+  );
+}
+
 export default function App() {
   const theme = useTheme();
   const [tabIndex, setTabIndex] = useState(0);
@@ -49,12 +126,17 @@ export default function App() {
     setAllChecked(next.length === allGroupIds.length);
   };
   const handleSelectAll = () => {
-    const allGroupIds = groups.flatMap(type => type.items.map(g => g.id));
+    // Собираем все leaf-узлы
+    function collectLeafIds(node) {
+      if (!node.items || node.items.length === 0) return [node.id];
+      return node.items.flatMap(collectLeafIds);
+    }
+    const allLeafIds = groups.flatMap(collectLeafIds);
     if (allChecked) {
       setChecked([]);
       setAllChecked(false);
     } else {
-      setChecked(allGroupIds);
+      setChecked(allLeafIds);
       setAllChecked(true);
     }
   };
@@ -73,9 +155,13 @@ export default function App() {
         setScanned(pluginMessage.total);
         setTotal(pluginMessage.total);
         setGroups(pluginMessage.groups || []);
-        // По умолчанию выделяем все группы всех типов
-        const allGroupIds = (pluginMessage.groups || []).flatMap(type => type.items.map(g => g.id));
-        setChecked(allGroupIds);
+        // По умолчанию выделяем все leaf-узлы
+        function collectLeafIds(node) {
+          if (!node.items || node.items.length === 0) return [node.id];
+          return node.items.flatMap(collectLeafIds);
+        }
+        const allLeafIds = (pluginMessage.groups || []).flatMap(collectLeafIds);
+        setChecked(allLeafIds);
         setAllChecked(true);
       }
       if (pluginMessage.type === 'scan-cancel') {
@@ -203,67 +289,15 @@ export default function App() {
                       mb={4}
                     >Select all</Checkbox>
                     <Divider m={0} p={0} />
-                    {groups.map((type, ti) => {
-                      console.log('RENDER TYPE', type.label);
-                      // Все id групп этого типа
-                      const groupIds = type.items.map(g => g.id);
-                      const allTypeChecked = groupIds.every(id => checked.includes(id));
-                      const someTypeChecked = groupIds.some(id => checked.includes(id));
-                      const handleTypeCheck = () => {
-                        let next;
-                        if (allTypeChecked) {
-                          next = checked.filter(id => !groupIds.includes(id));
-                        } else {
-                          next = Array.from(new Set([...checked, ...groupIds]));
-                        }
-                        // Считаем все группы всех типов
-                        const allGroupIds = groups.flatMap(type => type.items.map(g => g.id));
-                        setChecked(next);
-                        setAllChecked(next.length === allGroupIds.length);
-                      };
-                      return (
-                        <Box
-                          key={type.id}
-                          m={0}
-                          p={0}
-                          mt={ti > 0 ? 2 : 0} // минимальный верхний отступ между секциями
-                          px={0}
-                          mx={0}
-                          bg="#fff"
-                          borderRadius="8px"
-                          boxShadow="none"
-                          overflow="visible"
-                        >
-                          <Box p={1} pb={0}>
-                            <Checkbox
-                              isChecked={allTypeChecked}
-                              isIndeterminate={!allTypeChecked && someTypeChecked}
-                              onChange={handleTypeCheck}
-                              fontSize="11px"
-                              fontWeight={700}
-                              colorScheme="blue"
-                              m={0} p={0} pl={0} borderRadius={0}
-                              mb={1}
-                              bg="none"
-                            >{type.label}</Checkbox>
-                          </Box>
-                          <VStack align="stretch" spacing={1} m={0} p={0} pl={4} pt={0}>
-                            {type.items.map((g, gi) => (
-                              <Checkbox
-                                key={g.id}
-                                isChecked={checked.includes(g.id)}
-                                onChange={() => handleCheck(g.id)}
-                                fontSize="11px"
-                                fontWeight={500}
-                                colorScheme="blue"
-                                m={0} p={0} pl={0} borderRadius={0}
-                                mb={gi === type.items.length - 1 ? 0 : 1}
-                              >{g.label}</Checkbox>
-                            ))}
-                          </VStack>
-                        </Box>
-                      );
-                    })}
+                    {groups.map(type => (
+                      <GroupCheckboxTree
+                        key={type.id}
+                        node={type}
+                        checked={checked}
+                        onCheck={next => setChecked(Array.isArray(next) ? next : [next])}
+                        level={0}
+                      />
+                    ))}
                   </VStack>
                 )}
                 {scanState === 'done' && groups.length === 0 && (
